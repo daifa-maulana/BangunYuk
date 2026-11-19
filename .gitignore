@@ -1,14 +1,23 @@
-# Miscellaneous
+# Miscellaneous & OS generated files
 *.class
 *.log
 *.pyc
 *.swp
 .DS_Store
+._*
+.Spotlight-V100
+.Trashes
+desktop.ini
+Thumbs.db
+ehthumbs.db
+ehthumbs_vista.db
 .atom/
 .buildlog/
 .history
 .svn/
 migrate_working_dir/
+*.tmp
+*.local
 
 # IntelliJ related
 *.iml
@@ -39,7 +48,41 @@ migrate_working_dir/
 **/android/**/GeneratedPluginRegistrant.java
 .gradle/
 
-# Secrets / Keystore
+# Secrets, Environment & Credentials
 *.keystore
 *.jks
 key.properties
+.env
+.env.*
+*.env
+*.pem
+*.key
+*.p12
+*.pfx
+*.cer
+*.crt
+*.der
+*.mobileprovision
+*service-account*.json
+*credentials*.json
+**/android/app/google-services.json
+**/ios/Runner/GoogleService-Info.plist
+**/macos/Runner/GoogleService-Info.plist
+
+# Native Build & Packaging outputs
+*.apk
+*.aab
+*.ap_
+*.dex
+**/android/.cxx/
+**/android/.externalNativeBuild/
+**/android/app/build/
+
+# Testing & Coverage
+coverage/
+*.lcov
+test/.test_coverage.dart
+
+# Symbols
+*.symbols
+app.*.symbols

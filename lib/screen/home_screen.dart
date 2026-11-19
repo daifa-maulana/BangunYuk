@@ -1,34 +1,19 @@
 import 'package:flutter/material.dart';
+import '../models/alarm.dart';
+import '../services/storage_service.dart';
 import '../theme.dart';
 import 'alarm_edit_screen.dart';
 
 // ═══════════════════════════════════════════════════════════════
 // HomeScreen (Beranda)
 //
-// PERAN : Frontend Developer (Anggota 2)
-// ALUR UI MURNI (In-Memory Dummy List untuk Pengetesan Frontend):
-//   1. Awalnya daftar alarm kosong (Page 02 · Beranda Kosong).
-//   2. Pengguna klik "+ Buat alarm pertama" -> buka Page 03 (Tambah Alarm).
-//   3. Di Page 03 klik "Simpan alarm" -> kembali ke Beranda dan
-//      data dummy langsung masuk ke tampilan (Page 01 · Beranda Berisi).
-//   Semua tanpa backend/database/service. Murni simulasi interaksi UI.
+// PERAN : Frontend Developer (Anggota 2) & System Logic (Anggota 3)
+// ALUR INTEGRASI (Penyimpanan Lokal SharedPreferences):
+//   1. Saat aplikasi dibuka, load data alarm dari StorageService.
+//   2. Jika kosong -> tampilkan Page 02 (Beranda Kosong).
+//   3. Jika ada alarm -> tampilkan Page 01 (Beranda Berisi + Kartu Alarm Berikutnya).
+//   4. Perubahan toggle switch, tambah alarm, edit, dan hapus tersimpan permanen.
 // ═══════════════════════════════════════════════════════════════
-
-class DummyAlarmUI {
-  final String time;
-  final String label;
-  final int taskCount;
-  final List<String> days;
-  bool isActive;
-
-  DummyAlarmUI({
-    required this.time,
-    required this.label,
-    required this.taskCount,
-    required this.days,
-    this.isActive = true,
-  });
-}
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -38,9 +23,25 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // ── List UI Dummy (Murni State Lokal Widget) ──
-  // Awalnya kosong agar menampilkan Page 02 (Beranda Kosong)
-  final List<DummyAlarmUI> _alarms = [];
+  // ── List Alarm Asli dari StorageService ──
+  List<Alarm> _alarms = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAlarms();
+  }
+
+  Future<void> _loadAlarms() async {
+    final alarms = await StorageService.loadAlarms();
+    if (mounted) {
+      setState(() {
+        _alarms = alarms;
+        _isLoading = false;
+      });
+    }
+  }
 
   // ── Helper format presentasi tanggal & sapaan ──
   static const _hari = [
@@ -64,25 +65,25 @@ class _HomeScreenState extends State<HomeScreen> {
     return 'Malam';
   }
 
-  // Fungsi navigasi ke Tambah Alarm (Page 03) dan menerima hasil visual
+  // Fungsi navigasi ke Tambah Alarm (Page 03)
   Future<void> _navigateToAddAlarm() async {
-    final result = await Navigator.push<DummyAlarmUI>(
+    final result = await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => const AlarmEditScreen(),
       ),
     );
 
-    // Jika user klik "Simpan alarm", tambahkan ke list visual lokal
     if (result != null) {
-      setState(() {
-        _alarms.add(result);
-      });
+      await _loadAlarms();
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
     return SafeArea(
       child: _alarms.isEmpty ? _buildEmptyHome() : _buildFilledHome(),
     );
@@ -310,8 +311,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildNextAlarmCard() {
-    final nextTime = _alarms.isNotEmpty ? _alarms.first.time : '06.00';
-    final nextLabel = _alarms.isNotEmpty ? _alarms.first.label : 'Pagi produktif';
+    final nextInfo = StorageService.getNextAlarm(_alarms);
+    final nextTime = nextInfo != null ? nextInfo.alarm.formattedTime : 'Belum ada';
+    final nextLabel = nextInfo != null ? nextInfo.alarm.label : 'Tidak ada alarm aktif';
+    final relativeText = nextInfo != null
+        ? nextInfo.relativeTimeText
+        : 'Aktifkan alarm untuk mulai';
 
     return Container(
       width: double.infinity,
@@ -350,9 +355,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                const Text(
-                  'Besok · 20 jam 19 menit lagi',
-                  style: TextStyle(fontSize: 13, color: AppColors.textOnCard),
+                Text(
+                  relativeText,
+                  style: const TextStyle(fontSize: 13, color: AppColors.textOnCard),
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -408,18 +413,12 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
 
-    if (result == 'DELETE') {
-      setState(() {
-        _alarms.removeAt(index);
-      });
-    } else if (result is DummyAlarmUI) {
-      setState(() {
-        _alarms[index] = result;
-      });
+    if (result != null) {
+      await _loadAlarms();
     }
   }
 
-  Widget _buildAlarmCard({required DummyAlarmUI item, required int index}) {
+  Widget _buildAlarmCard({required Alarm item, required int index}) {
     return GestureDetector(
       onTap: () => _navigateToEditAlarm(index),
       child: Container(
@@ -455,10 +454,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 value: item.isActive,
                 activeThumbColor: Colors.white,
                 activeTrackColor: AppColors.activeGreen,
-                onChanged: (val) {
+                onChanged: (val) async {
                   setState(() {
-                    item.isActive = val;
+                    _alarms[index] = item.copyWith(isActive: val);
                   });
+                  await StorageService.toggleAlarm(item.id, val);
+                  await _loadAlarms();
                 },
               ),
             ],

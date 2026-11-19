@@ -1,22 +1,23 @@
 import 'package:flutter/material.dart';
+import '../models/alarm.dart';
+import '../services/storage_service.dart';
 import '../theme.dart';
-import 'home_screen.dart';
 import 'challenge_selection_screen.dart';
 
 // ═══════════════════════════════════════════════════════════════
 // AlarmEditScreen (03 · Tambah alarm & 05 · Edit alarm)
 //
-// PERAN : Frontend Developer (Anggota 2)
-// FITUR UI:
-//   - Mode Tambah: Judul "Tambah alarm", tanpa tombol "Hapus alarm".
-//   - Mode Edit: Judul "Edit alarm", ada tombol teks merah "Hapus alarm".
+// PERAN : Frontend Developer (Anggota 2) & System Logic (Anggota 3)
+// FITUR:
+//   - Mode Tambah: Jam awal otomatis jam saat ini, judul "Tambah alarm".
+//   - Mode Edit: Judul "Edit alarm", tombol teks merah "Hapus alarm".
 //   - Drum-wheel interaktif jam & menit.
 //   - Terhubung dengan Page 04 (Pilih tantangan).
-//   - Mengembalikan data DummyAlarmUI atau aksi hapus ke HomeScreen.
+//   - Menyimpan permanen ke SharedPreferences via StorageService.
 // ═══════════════════════════════════════════════════════════════
 
 class AlarmEditScreen extends StatefulWidget {
-  final DummyAlarmUI? existingAlarm;
+  final Alarm? existingAlarm;
   final int? alarmIndex;
 
   const AlarmEditScreen({
@@ -39,8 +40,8 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
   int _selectedHour = 6;
   int _selectedMinute = 0;
 
-  // Visual hari: S, S, R, K, J (aktif), S, M (nonaktif)
-  final List<bool> _repeatDays = [true, true, true, true, true, false, false];
+  // Visual hari: default semua nonaktif (alarm berdering sekali saja)
+  final List<bool> _repeatDays = [false, false, false, false, false, false, false];
   final List<String> _dayLabels = ['S', 'S', 'R', 'K', 'J', 'S', 'M'];
   final List<String> _dayNames = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
 
@@ -56,20 +57,24 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
     if (widget.isEditMode) {
       final alarm = widget.existingAlarm!;
       _labelController = TextEditingController(text: alarm.label);
-
-      // Parsing jam & menit visual (misal "06.00")
-      final parts = alarm.time.split('.');
-      if (parts.length == 2) {
-        _selectedHour = int.tryParse(parts[0]) ?? 6;
-        _selectedMinute = int.tryParse(parts[1]) ?? 0;
+      _selectedHour = alarm.hour;
+      _selectedMinute = alarm.minute;
+      _snoozeEnabled = alarm.snoozeEnabled;
+      if (alarm.taskIds.isNotEmpty) {
+        _selectedChallenges = List.from(alarm.taskIds);
       }
 
-      // Parsing hari pengulangan
+      // Parsing hari pengulangan (1 = Senin ... 7 = Minggu)
       for (int i = 0; i < 7; i++) {
-        _repeatDays[i] = alarm.days.contains(_dayNames[i]);
+        _repeatDays[i] = alarm.repeatDays.contains(i + 1);
       }
     } else {
-      _labelController = TextEditingController(text: 'Pagi produktif');
+      // Inisialisasi awal mengikuti jam dan menit saat ini
+      final now = DateTime.now();
+      _selectedHour = now.hour;
+      _selectedMinute = now.minute;
+      // Kolom label dikosongkan (default placeholder hint text)
+      _labelController = TextEditingController(text: '');
     }
 
     _hourScrollController = FixedExtentScrollController(initialItem: _selectedHour);
@@ -313,6 +318,12 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
           fontWeight: FontWeight.w500,
         ),
         decoration: const InputDecoration(
+          hintText: 'Nama alarm (opsional)',
+          hintStyle: TextStyle(
+            color: Color(0xFF9E9E9E),
+            fontSize: 15,
+            fontWeight: FontWeight.normal,
+          ),
           contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           border: InputBorder.none,
         ),
@@ -534,9 +545,14 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
             child: const Text('Batal', style: TextStyle(color: AppColors.textSecondary)),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(ctx); // Tutup dialog
-              Navigator.pop(context, 'DELETE'); // Kirim signal hapus ke Home
+              if (widget.existingAlarm != null) {
+                await StorageService.deleteAlarm(widget.existingAlarm!.id);
+              }
+              if (context.mounted) {
+                Navigator.pop(context, 'DELETE');
+              }
             },
             child: const Text('Hapus', style: TextStyle(color: Color(0xFFE53935), fontWeight: FontWeight.bold)),
           ),
@@ -550,23 +566,33 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
       width: double.infinity,
       height: 52,
       child: ElevatedButton(
-        onPressed: () {
-          final activeDays = <String>[];
+        onPressed: () async {
+          final activeDays = <int>[];
           for (int i = 0; i < 7; i++) {
             if (_repeatDays[i]) {
-              activeDays.add(_dayNames[i]);
+              activeDays.add(i + 1); // 1 = Senin ... 7 = Minggu
             }
           }
 
-          final updatedAlarm = DummyAlarmUI(
-            time: '${_selectedHour.toString().padLeft(2, '0')}.${_selectedMinute.toString().padLeft(2, '0')}',
-            label: _labelController.text.trim().isEmpty ? 'Alarm' : _labelController.text.trim(),
-            taskCount: _selectedChallenges.length,
-            days: activeDays.isEmpty ? ['Sekali'] : activeDays,
+          final alarm = Alarm(
+            id: widget.existingAlarm?.id ??
+                (DateTime.now().millisecondsSinceEpoch % 2147483647),
+            hour: _selectedHour,
+            minute: _selectedMinute,
+            label: _labelController.text.trim().isEmpty
+                ? 'Alarm'
+                : _labelController.text.trim(),
+            repeatDays: activeDays,
+            taskIds: _selectedChallenges,
             isActive: true,
+            snoozeEnabled: _snoozeEnabled,
           );
 
-          Navigator.pop(context, updatedAlarm);
+          await StorageService.saveAlarm(alarm);
+
+          if (context.mounted) {
+            Navigator.pop(context, alarm);
+          }
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFFFF8533),
