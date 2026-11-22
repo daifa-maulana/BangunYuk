@@ -1,86 +1,64 @@
-# Panduan Kerja: QA & User Testing (Anggota 5)
+# Panduan Kerja: QA, Performance & Release Specialist (Anggota 5)
 ## Proyek: BangunYuk — Smart Habit-Breaking Alarm
 
-Sebagai **Quality Assurance (QA) & User Testing**, Anda adalah "penjaga gerbang kualitas" dari BangunYuk. Bagi aplikasi alarm, sebuah kegagalan (misalnya alarm tidak berbunyi karena HP mati layar) bisa berakibat fatal bagi pengguna (terlambat kerja, ketinggalan ujian). Tugas Anda adalah mencari kelemahan dan celah aplikasi sebelum dirilis ke pengguna.
+Sebagai **QA, Performance & Release Specialist**, Anda adalah "penjaga gerbang kualitas dan efisiensi" dari BangunYuk. Peran Anda bukan hanya menguji tombol dan mencari bug, tetapi juga **mengendalikan ukuran APK agar tetap ramping (< 10 MB)**, memvalidasi performa di HP fisik, dan mendokumentasikan laporan pengujian di setiap flow.
 
 ---
 
-## 🎯 Target Utama Anda pada Fase Perancangan Awal
-1. Dokumen Test Plan & Matriks Pengujian skenario kritis (Edge Cases).
-2. Lembar pencatatan bug (*Bug Tracker & Reproduction Steps*).
-3. Pengujian langsung pada perangkat fisik Android (bukan sekadar emulator).
-4. Verifikasi ketahanan mekanisme *anti-cheat* dan *volume lock*.
+## 🎯 Target Utama Anda
+1. Mengawal **optimasi ukuran APK** agar tidak membengkak (sukses terpangkas dari 179 MB ke **9.19 MB**).
+2. Mengisi dan memperbarui dokumen **[DOKUMENTASI_QA_DAN_HASIL_TESTING.md](../DOKUMENTASI_QA_DAN_HASIL_TESTING.md)** di setiap flow.
+3. Melakukan pengujian langsung di berbagai perangkat fisik Android (Xiaomi, Samsung, Oppo).
+4. Memvalidasi skenario kritis: alarm saat HP terkunci, restart HP, dan mekanisme *Volume Lock*.
 
 ---
 
 ## 🛠️ Tools yang Digunakan
-- **Dokumen Uji**: Spreadsheet (Google Sheets) atau Markdown Checklist.
-- **Device Lab**: Perangkat fisik Android (utamakan mencoba di merek dengan sistem manajemen baterai agresif seperti Xiaomi/MIUI, Oppo/ColorOS, Samsung/OneUI).
-- **Log Viewer**: Android Studio Logcat / `adb logcat` (untuk melihat pesan error saat crash).
+- **Alat Uji & Dokumentasi**: [DOKUMENTASI_QA_DAN_HASIL_TESTING.md](../DOKUMENTASI_QA_DAN_HASIL_TESTING.md).
+- **Build & Optimization Command**:
+  ```powershell
+  # Perintah build andalan Anda untuk menghasilkan APK ramping < 10 MB:
+  flutter build apk --release --split-per-abi
+  ```
+- **Device Lab**: Perangkat fisik Android asli (utamakan HP dengan sistem baterai agresif seperti Xiaomi MIUI/HyperOS).
+- **Log Viewer**: `adb logcat` / terminal Flutter.
 
 ---
 
-## 🪜 Langkah-Langkah Kerja Tahap Demi Tahap
+## 🪜 Langkah Kerja Anda di Setiap Flow
 
-### Langkah 1: Penyusunan Test Plan & Test Cases (Hari 1–3)
-Susun tabel skenario uji dengan kolom: `ID Test`, `Deskripsi Skenario`, `Langkah Pengujian`, `Hasil yang Diharapkan`, `Hasil Aktual`, dan `Status (Pass/Fail)`.
+### 🔁 Flow 1: Tampilan & Penyetelan Alarm
+- [ ] **Uji Empty State**: Pastikan saat database kosong, layar menampilkan *"02 - Beranda kosong"* persis seperti desain Figma.
+- [ ] **Uji Tambah Alarm**: Klik `+ Buat alarm pertama`, pastikan langsung berpindah ke Beranda Berisi + Banner Kuning.
+- [ ] **Uji Persistence Data**: Hapus aplikasi dari *Recent Apps*, buka lagi, pastikan data alarm tidak hilang.
+- [ ] Catat hasil uji di Bagian 2 (TC-1.01 s/d TC-1.05) pada file `DOKUMENTASI_QA_DAN_HASIL_TESTING.md`.
 
-Kategori skenario utama:
-1. **Skenario Pemicu Alarm**:
-   - `TC-01`: Alarm disetel 2 menit ke depan, aplikasi tetap di layar depan $\rightarrow$ Alarm wajib berbunyi.
-   - `TC-02`: Alarm disetel 5 menit ke depan, pengguna menekan tombol Home $\rightarrow$ Alarm wajib berbunyi.
-   - `TC-03`: Alarm disetel, layar HP dimatikan dan dikunci $\rightarrow$ Layar wajib menyala otomatis dan menampilkan layar tugas.
-   - `TC-04`: Aplikasi di-swipe dari daftar *Recent Apps* $\rightarrow$ Alarm tetap berbunyi tepat waktu via Foreground Service.
-   - `TC-05`: HP di-restart 15 menit sebelum jam alarm $\rightarrow$ Alarm tetap berbunyi setelah reboot.
-   - `TC-06`: HP dalam mode "Jangan Ganggu" (*Do Not Disturb*) $\rightarrow$ Alarm tetap menghasilkan bunyi.
+### 🔁 Flow 2: Pemicu Alarm Berdering & Misi
+- [ ] **Uji Layar Terkunci**: Kunci layar HP, tunggu jam alarm, pastikan layar menyala otomatis (*Full Screen Intent*).
+- [ ] **Uji Anti-Cheat Volume**: Tekan tombol volume bawah berkali-kali saat alarm bunyi $\rightarrow$ pastikan volume tetap 100%.
+- [ ] **Uji Misi**:
+  * Matematika: coba salahkan 1 soal $\rightarrow$ hitungan wajib reset.
+  * Goyang & Lompat: uji apakah sensor membedakan getaran palsu.
+- [ ] Catat hasil uji di Bagian 2 (TC-2.01 s/d TC-2.07).
 
-2. **Skenario Anti-Cheat & Tombol Fisik**:
-   - `TC-07`: Alarm meraung, pengguna menekan tombol fisik volume down berulang kali $\rightarrow$ Suara tidak boleh mengecil (otomatis kembali 100%).
-   - `TC-08`: Pengguna menekan tombol "Back" berulang kali di layar tugas $\rightarrow$ Navigasi tertahan, layar tugas tidak boleh tertutup.
+### 🔁 Flow 3: Statistik, Gamifikasi & Profil
+- [ ] **Uji Navigasi**: Coba klik tab Beranda, Statistik, dan Profil di Bottom Bar.
+- [ ] **Uji Streak**: Selesaikan misi alarm pagi, cek apakah streak bertambah $+1$ (ikon api 🔥).
+- [ ] Catat hasil uji di Bagian 2 (TC-3.01 s/d TC-3.03).
 
-3. **Skenario Validasi 6 Tugas Kebangunan**:
-   - `TC-09 (Matematika)`: Memasukkan jawaban salah $\rightarrow$ Hitungan jawaban benar direset, tingkat kesulitan bertambah.
-   - `TC-10 (Matematika)`: Memasukkan 3 jawaban benar berturut-turut $\rightarrow$ Tugas dinyatakan selesai.
-   - `TC-11 (Ketik Frasa)`: Typo 1 huruf $\rightarrow$ Sistem menolak tombol selesai.
-   - `TC-12 (Goyang HP)`: Menggoyang ponsel pelan-pelan $\rightarrow$ Threshold sensor tidak boleh tertipu.
-   - `TC-13 (Lompat)`: Menggoyangkan tangan menyerupai lompatan $\rightarrow$ Sistem hanya menghitung saat terjadi kombinasi *free-fall* dan *impact*.
-   - `TC-14 (Kamera/Foto)`: Mengambil foto $\rightarrow$ Kamera merespons cepat tanpa error out-of-memory.
-
-4. **Skenario Multi-Task & Streak**:
-   - `TC-15`: Memilih 2 tugas (Matematika + Goyang) $\rightarrow$ Alarm baru boleh mati setelah KEDUA tugas selesai berurutan.
-   - `TC-16`: Setelah selesai tepat waktu $\rightarrow$ Angka streak hari di halaman statistik bertambah 1.
-
-### Langkah 2: Eksekusi Pengujian Sesi 1 (Hari 4–5)
-- [ ] Dapatkan file build APK dari developer.
-- [ ] Install pada perangkat fisik Android.
-- [ ] Lakukan *Smoke Test* menggunakan tombol "Coba alarm sekarang (5 detik)".
-- [ ] Uji skenario `TC-01` sampai `TC-08`.
-
-### Langkah 3: Pelaporan Bug & Siklus Retest (Hari 5–6)
-Format pelaporan bug:
-```markdown
-### [BUG-01] [High/Critical] Layar tugas tidak muncul saat HP terkunci di Xiaomi MIUI 14
-- **Perangkat**: Redmi Note 11 (Android 13, MIUI 14)
-- **Langkah Reproduksi**:
-  1. Setel alarm 2 menit ke depan.
-  2. Kunci layar HP.
-  3. Tunggu hingga menit alarm tiba.
-- **Hasil yang Diharapkan**: Layar tugas terbuka penuh di atas lockscreen.
-- **Hasil Aktual**: Hanya suara yang berbunyi, layar tetap hitam dan harus ditekan power secara manual.
-- **Dugaan Penyebab**: Izin "Tampilkan di layar kunci" belum aktif di setelan sistem OEM.
-```
-- [ ] Kirimkan laporan bug kepada Anggota 2 (Frontend) atau Anggota 3 (System & Logic).
-- [ ] Lakukan verifikasi ulang (*Retest*) setelah developer memperbaiki kode.
-
-### Langkah 4: Uji Coba Pengguna Nyata (User Acceptance Testing) (Hari 6–7)
-- [ ] Minta orang di luar tim (teman/keluarga) mencoba menyetel alarm dan bangun di pagi hari.
-- [ ] Catat masukan: Apakah ada tugas yang terlalu sulit? Apakah instruksinya jelas?
-- [ ] Serahkan laporan evaluasi akhir kepada Anggota 1 (Project Manager).
+### 📦 Tugas Khusus: Optimasi & Packaging APK
+- [ ] Jalankan perintah:
+  ```powershell
+  flutter build apk --release --split-per-abi
+  ```
+- [ ] Periksa ukuran file di `build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`.
+- [ ] Pastikan ukurannya tetap **ramping di kisaran 9 MB** (jika membengkak, cek apakah ada asset gambar besar atau package yang belum di-minify).
+- [ ] Berikan file `app-arm64-v8a-release.apk` ke teman-teman kelompok untuk diinstall.
 
 ---
 
-## 📋 Checklist Kriteria Sukses (Definition of Done QA)
-- [ ] Seluruh skenario pemicu alarm (layar mati, kill recent apps, reboot) berstatus **PASS**.
-- [ ] Tidak ada bug dengan tingkat keparahan *Blocker* atau *Critical* yang tersisa.
-- [ ] Pengujian telah diverifikasi pada minimal 2 perangkat Android dari merk yang berbeda.
-
+## 📋 Checklist Kriteria Sukses (Definition of Done Anggota 5)
+- [ ] File [DOKUMENTASI_QA_DAN_HASIL_TESTING.md](../DOKUMENTASI_QA_DAN_HASIL_TESTING.md) terisi lengkap dari Flow 1 sampai Flow 3.
+- [ ] Ukuran APK final terverifikasi $\le 10$ MB.
+- [ ] Tidak ada bug berkategori *Critical* / *Blocker* yang belum terselesaikan.
+- [ ] QA memberikan tanda tangan pengesahan (*Sign-off*) bahwa aplikasi siap didemokan ke dosen / dipresentasikan.
